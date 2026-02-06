@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const path = require('path');
 const conversationRoutes = require('./routes/conversation');
 
 const app = express();
@@ -24,16 +25,30 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-    res.json({
-        message: 'Conversational Text Editor POC - Backend Server',
-        endpoints: {
-            health: '/health',
-            conversation: '/api/conversation/*'
+// Serve static files from React build (for production/Docker)
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, 'public')));
+    
+    // Serve React app for all non-API routes
+    app.get('*', (req, res) => {
+        // Don't serve React app for API routes
+        if (req.path.startsWith('/api')) {
+            return res.status(404).json({ error: 'API endpoint not found' });
         }
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
     });
-});
+} else {
+    // Root endpoint (for development)
+    app.get('/', (req, res) => {
+        res.json({
+            message: 'Conversational Text Editor POC - Backend Server',
+            endpoints: {
+                health: '/health',
+                conversation: '/api/conversation/*'
+            }
+        });
+    });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
